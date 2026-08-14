@@ -11,6 +11,7 @@ export function useAudioEngine() {
   const [isPlaying, setIsPlaying] = useState(false)
   const [isClean, setIsClean] = useState(true)
   const [fileName, setFileName] = useState(null)
+  const [sourceType, setSourceType] = useState('none') // 'none' | 'upload' | 'recording'
   const [fileDuration, setFileDuration] = useState(0)
   const [isExporting, setIsExporting] = useState(false)
   const [error, setError] = useState(null)
@@ -61,6 +62,7 @@ export function useAudioEngine() {
     try {
       const res = await engine.stopRecording()
       setFileName('تسجيل الميكروفون')
+      setSourceType('recording')
       setFileDuration(res.duration)
       setIsPlaying(false)
       return res
@@ -77,6 +79,7 @@ export function useAudioEngine() {
         const engine = await getEngine()
         const buf = await engine.loadAudioFile(file)
         setFileName(file.name)
+        setSourceType('upload')
         setFileDuration(buf.duration)
         setIsPlaying(false)
         return buf
@@ -150,6 +153,7 @@ export function useAudioEngine() {
     isPlaying,
     isClean,
     fileName,
+    sourceType,
     fileDuration,
     isExporting,
     error,

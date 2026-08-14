@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useAudioEngine } from './hooks/useAudioEngine.js'
 import Toasts from './components/Toasts.jsx'
+import InstallPrompt from './components/InstallPrompt.jsx'
 
 /* ---------------- الفيجوالايزر ---------------- */
 function Visualizer({ getAnalyser, isActive }) {
@@ -64,6 +65,7 @@ export default function App() {
     isPlaying,
     isClean,
     fileName,
+    sourceType,
     fileDuration,
     isExporting,
     error,
@@ -233,9 +235,9 @@ export default function App() {
       {/* ============ Workspace ============ */}
       <section
         ref={workspaceRef}
-        className="scroll-mt-8 px-4 pb-16 pt-6 sm:scroll-mt-12"
+        className="scroll-mt-6 px-4 pb-16 pt-2"
       >
-        <div className="mx-auto my-4 max-w-xl">
+        <div className="mx-auto mb-8 mt-2 max-w-xl">
           <div className="rounded-3xl border border-white/10 bg-slate-900/60 p-6 shadow-2xl shadow-black/40 backdrop-blur sm:p-8">
             {/* التبويبات */}
             <div className="mb-6 grid grid-cols-2 gap-2 rounded-2xl bg-slate-950/60 p-1.5">
@@ -291,7 +293,7 @@ export default function App() {
                         جاري التسجيل — اضغط الزر الأحمر للإيقاف والحفظ
                       </p>
                     </>
-                  ) : fileName ? (
+                  ) : sourceType === 'recording' ? (
                     <>
                       <div className="text-lg font-bold text-cyan-300">🎵 {fileName}</div>
                       <p className="mt-1 text-xs text-slate-500">
@@ -356,7 +358,7 @@ export default function App() {
                       e.target.value = ''
                     }}
                   />
-                  {fileName ? (
+                  {sourceType === 'upload' && fileName ? (
                     <div>
                       <div className="text-3xl">🎵</div>
                       <div className="mt-2 truncate text-sm font-bold text-cyan-300">
@@ -441,6 +443,7 @@ export default function App() {
       </section>
 
       <Toasts toasts={toasts} onDismiss={dismissToast} />
+      <InstallPrompt />
     </div>
   )
 }
