@@ -7,7 +7,7 @@ import { AudioEngine } from '../audio/AudioEngine'
 export function useAudioEngine() {
   const engineRef = useRef(null)
   const [isReady, setIsReady] = useState(false)
-  const [isMicOn, setIsMicOn] = useState(false)
+  const [isRecording, setIsRecording] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
   const [isClean, setIsClean] = useState(true)
   const [fileName, setFileName] = useState(null)
@@ -24,37 +24,50 @@ export function useAudioEngine() {
   }, [])
 
   useEffect(() => {
-    // فحص دعم AudioWorklet + WASM + OfflineAudioContext
+    // فحص دعم AudioWorklet + WASM + OfflineAudioContext + MediaRecorder
     const ok =
       typeof AudioContext !== 'undefined' &&
       'audioWorklet' in AudioContext.prototype &&
       typeof OfflineAudioContext !== 'undefined' &&
-      typeof WebAssembly !== 'undefined'
+      typeof WebAssembly !== 'undefined' &&
+      typeof MediaRecorder !== 'undefined'
     setSupported(ok)
-    if (!ok) setError('متصفحك لا يدعم AudioWorklet — جرّب Chrome أو Edge أحدث')
+    if (!ok) setError('متصفحك لا يدعم التسجيل أو المعالجة الصوتية — جرّب Chrome أو Edge أحدث')
     // تهيئة مبكرة (تُنشئ الـ AudioContext عند أول تفاعل — سياسة التشغيل التلقائي)
     getEngine()
-      .then((engine) => engine.ensureContext())
+      .then((engine) => {
+        // كشف للاختبار الآلي/التشخيص — المحرك محلي بالكامل (لا أثر أمني)
+        window.__audioEngine = engine
+        return engine.ensureContext()
+      })
       .then(() => setIsReady(true))
       .catch((e) => setError(String(e.message || e)))
   }, [getEngine])
 
-  const startMic = useCallback(async () => {
+  const startRecording = useCallback(async () => {
     setError(null)
     try {
       const engine = await getEngine()
-      await engine.startMic()
-      setIsMicOn(true)
+      await engine.startRecording()
+      setIsRecording(true)
     } catch (e) {
-      setError(`تعذّر تشغيل الميكروفون: ${e.message || e}`)
+      setError(`تعذّر بدء التسجيل: ${e.message || e}`)
       throw e
     }
   }, [getEngine])
 
-  const stopMic = useCallback(async () => {
+  const stopRecording = useCallback(async () => {
     const engine = await getEngine()
-    engine.stopMic()
-    setIsMicOn(false)
+    try {
+      const res = await engine.stopRecording()
+      setFileName('تسجيل الميكروفون')
+      setFileDuration(res.duration)
+      setIsPlaying(false)
+      return res
+    } finally {
+      // حتى لو فشل (تسجيل قصير جداً) — نخرج من حالة التسجيل في الواجهة
+      setIsRecording(false)
+    }
   }, [getEngine])
 
   const loadFile = useCallback(
@@ -77,12 +90,10 @@ export function useAudioEngine() {
 
   const play = useCallback(async () => {
     const engine = await getEngine()
+    // انتهاء الملف طبيعياً → تحديث حالة الواجهة
+    engine.onPlaybackEnd = () => setIsPlaying(false)
     engine.playBuffer()
     setIsPlaying(true)
-    const src = engine.bufferSource
-    if (src) {
-      src.onended = () => setIsPlaying(false)
-    }
   }, [getEngine])
 
   const stop = useCallback(async () => {
@@ -135,7 +146,7 @@ export function useAudioEngine() {
 
   return {
     isReady,
-    isMicOn,
+    isRecording,
     isPlaying,
     isClean,
     fileName,
@@ -143,8 +154,8 @@ export function useAudioEngine() {
     isExporting,
     error,
     supported,
-    startMic,
-    stopMic,
+    startRecording,
+    stopRecording,
     loadFile,
     play,
     stop,

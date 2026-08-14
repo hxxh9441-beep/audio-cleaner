@@ -60,7 +60,7 @@ function Visualizer({ getAnalyser, isActive }) {
 export default function App() {
   const {
     isReady,
-    isMicOn,
+    isRecording,
     isPlaying,
     isClean,
     fileName,
@@ -68,8 +68,8 @@ export default function App() {
     isExporting,
     error,
     supported,
-    startMic,
-    stopMic,
+    startRecording,
+    stopRecording,
     loadFile,
     play,
     stop,
@@ -98,28 +98,32 @@ export default function App() {
 
   // مؤقت التسجيل
   useEffect(() => {
-    if (!isMicOn) return
+    if (!isRecording) return
     setMicSeconds(0)
     const t = setInterval(() => setMicSeconds((s) => s + 1), 1000)
     return () => clearInterval(t)
-  }, [isMicOn])
+  }, [isRecording])
 
   const fmtTime = (s) =>
     `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
 
-  const handleMic = useCallback(async () => {
-    if (isMicOn) {
-      await stopMic()
-      pushToast('info', 'تم إيقاف التسجيل')
+  const handleRecord = useCallback(async () => {
+    if (isRecording) {
+      try {
+        const { duration } = await stopRecording()
+        pushToast('success', `تم حفظ تسجيلك (${duration.toFixed(1)} ث) — شغّله وطبق التنقية`)
+      } catch {
+        pushToast('error', 'تعذّر حفظ التسجيل — حاول مرة أخرى')
+      }
     } else {
       try {
-        await startMic()
-        pushToast('success', 'التسجيل يعمل — استمع للفرق الآن')
+        await startRecording()
+        pushToast('success', 'جاري التسجيل — اضغط الزر الأحمر للإيقاف والحفظ')
       } catch {
         pushToast('error', 'تعذّر الوصول للميكروفون — تحقق من الإذن')
       }
     }
-  }, [isMicOn, startMic, stopMic, pushToast])
+  }, [isRecording, startRecording, stopRecording, pushToast])
 
   const handleFile = useCallback(
     async (f) => {
@@ -141,18 +145,23 @@ export default function App() {
   const switchTab = useCallback(
     async (next) => {
       if (next === tab) return
-      // إيقاف الميكروفون عند الانتقال لتبويب الرفع
-      if (next === 'upload' && isMicOn) {
-        await stopMic()
+      // حفظ التسجيل تلقائياً عند الانتقال لتبويب الرفع
+      if (next === 'upload' && isRecording) {
+        try {
+          await stopRecording()
+          pushToast('success', 'تم حفظ التسجيل تلقائياً')
+        } catch {
+          pushToast('error', 'تعذّر حفظ التسجيل')
+        }
       }
       setTab(next)
     },
-    [tab, isMicOn, stopMic],
+    [tab, isRecording, stopRecording, pushToast],
   )
 
   const handlePlay = useCallback(async () => {
     if (!fileName) {
-      pushToast('info', tab === 'upload' ? 'ارفع ملفاً صوتياً أولاً' : 'حوّل لتبويب رفع الملف')
+      pushToast('info', tab === 'upload' ? 'ارفع ملفاً صوتياً أولاً' : 'سجّل صوتك أولاً أو ارفع ملفاً')
       return
     }
     if (isPlaying) await stop()
@@ -161,7 +170,7 @@ export default function App() {
 
   const handleExport = useCallback(async () => {
     if (!fileName) {
-      pushToast('info', 'ارفع ملفاً صوتياً أولاً')
+      pushToast('info', 'لا يوجد صوت للتنزيل — سجّل أو ارفع أولاً')
       return
     }
     try {
@@ -222,8 +231,11 @@ export default function App() {
       </section>
 
       {/* ============ Workspace ============ */}
-      <section ref={workspaceRef} className="px-4 pb-24">
-        <div className="mx-auto max-w-2xl">
+      <section
+        ref={workspaceRef}
+        className="scroll-mt-8 px-4 pb-16 pt-6 sm:scroll-mt-12"
+      >
+        <div className="mx-auto my-4 max-w-xl">
           <div className="rounded-3xl border border-white/10 bg-slate-900/60 p-6 shadow-2xl shadow-black/40 backdrop-blur sm:p-8">
             {/* التبويبات */}
             <div className="mb-6 grid grid-cols-2 gap-2 rounded-2xl bg-slate-950/60 p-1.5">
@@ -255,36 +267,49 @@ export default function App() {
             {tab === 'mic' && (
               <div className="flex flex-col items-center py-4">
                 <button
-                  onClick={handleMic}
+                  onClick={handleRecord}
                   disabled={!supported}
                   className={`relative flex h-28 w-28 items-center justify-center rounded-full text-white transition focus:outline-none focus-visible:ring-4 focus-visible:ring-cyan-300 disabled:cursor-not-allowed disabled:opacity-40 ${
-                    isMicOn
+                    isRecording
                       ? 'bg-rose-600 shadow-lg shadow-rose-600/40 hover:bg-rose-500'
                       : 'bg-gradient-to-br from-cyan-500 to-emerald-500 shadow-lg shadow-cyan-500/30 hover:scale-105 active:scale-95'
                   }`}
                 >
-                  {isMicOn && (
+                  {isRecording && (
                     <span className="absolute inset-0 -z-10 animate-ping rounded-full bg-rose-500/40" />
                   )}
-                  <span className="text-3xl">{isMicOn ? '🛑' : '🎙️'}</span>
+                  <span className="text-3xl">{isRecording ? '🛑' : '🎙️'}</span>
                 </button>
 
                 <div className="mt-4 text-center">
-                  <div
-                    className={`font-mono text-2xl font-bold tabular-nums ${
-                      isMicOn ? 'text-rose-400' : 'text-slate-300'
-                    }`}
-                  >
-                    {fmtTime(micSeconds)}
-                  </div>
-                  <p className="mt-2 text-sm text-slate-400">
-                    {isMicOn
-                      ? 'التنقية تعمل الآن — استمع للفرق لحظياً'
-                      : 'اضغط الزر وابدأ التحدث — تُنقّى الخلفية لحظياً'}
-                  </p>
-                  <p className="mt-1 text-xs text-slate-600">
-                    لتجربة التنزيل، استخدم تبويب «رفع ملف صوتي»
-                  </p>
+                  {isRecording ? (
+                    <>
+                      <div className="font-mono text-2xl font-bold tabular-nums text-rose-400">
+                        {fmtTime(micSeconds)}
+                      </div>
+                      <p className="mt-2 text-sm text-rose-300/90">
+                        جاري التسجيل — اضغط الزر الأحمر للإيقاف والحفظ
+                      </p>
+                    </>
+                  ) : fileName ? (
+                    <>
+                      <div className="text-lg font-bold text-cyan-300">🎵 {fileName}</div>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {fileDuration ? `${fileDuration.toFixed(1)} ثانية` : ''} · اضغط ▶️ بالأسفل
+                        للتشغيل والمقارنة، ⬇️ للتنزيل
+                      </p>
+                      <p className="mt-1 text-xs text-slate-600">
+                        تسجيل جديد يستبدل التسجيل الحالي
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="text-2xl font-bold text-slate-300">اضغط وابدأ التسجيل</div>
+                      <p className="mt-2 text-sm text-slate-400">
+                        يُسجَّل صوتك بصمت (لا ارتجاع من السماعات) ثم تُنقّى خلفيته وتستمع للفرق
+                      </p>
+                    </>
+                  )}
                 </div>
               </div>
             )}
@@ -356,7 +381,7 @@ export default function App() {
 
             {/* الفيجوالايزر */}
             <div className="mt-6">
-              <Visualizer getAnalyser={getAnalyser} isActive={isMicOn || isPlaying} />
+              <Visualizer getAnalyser={getAnalyser} isActive={isRecording || isPlaying} />
             </div>
 
             {/* التشغيل والمقارنة */}
@@ -396,8 +421,8 @@ export default function App() {
               </div>
             </div>
 
-            {/* زر التحميل — في تبويب الرفع فقط */}
-            {tab === 'upload' && (
+            {/* زر التحميل — يظهر عند توفر صوت (رفع ملف أو تسجيل ميكروفون) */}
+            {fileName && (
               <button
                 onClick={handleExport}
                 disabled={!supported || !fileName || isExporting}

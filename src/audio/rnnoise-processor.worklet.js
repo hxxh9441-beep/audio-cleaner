@@ -105,3 +105,7 @@ class RNNoiseProcessor extends AudioWorkletProcessor {
 }
 
 registerProcessor('rnnoise-processor', RNNoiseProcessor)
+
+// يسمح لاختبارات Node (test/*.test.mjs) باستيراد هذا الملف دون خطأ Vite-specific
+export default ''
+
