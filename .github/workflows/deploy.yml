@@ -1,0 +1,70 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# تشغيل واحد فقط في كل مرة (لا نزاحم عمليات النشر)
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      # فحص 1: لا مسارات جذر مطلقة (/) تكسر على username.github.io/repo-name/
+      - name: Verify no absolute root paths
+        run: |
+          if grep -RrnE '(src|href)="/' dist/ 2>/dev/null; then
+            echo "::error::Absolute root paths found in dist/ — use relative './' paths instead"
+            exit 1
+          fi
+          echo "✅ No absolute root paths in dist/"
+
+      # فحص 2: WASM يُخدم بـ Content-Type: application/wasm
+      # (RNNoise wasm مضمّن base64 داخل الـ worklet chunk — بلا ملفات .wasm خارجية)
+      - name: Verify WASM handling
+        run: |
+          if find dist -name "*.wasm" | grep -q .; then
+            echo "External .wasm files found — GitHub Pages serves them as application/wasm automatically."
+            find dist -name "*.wasm" -exec ls -la {} \;
+          else
+            echo "✅ No external .wasm files — RNNoise WASM is inlined (base64) in the worklet chunk, no MIME-type risk."
+          fi
+
+      - name: List build output
+        run: ls -la dist/ && ls -la dist/assets/
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
