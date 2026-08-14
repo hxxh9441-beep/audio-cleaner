@@ -21,38 +21,22 @@ function Visualizer({ getAnalyser, isActive }) {
 
         ctx2d.clearRect(0, 0, W, H)
 
-        // خلفية شبكية خفيفة
-        ctx2d.strokeStyle = 'rgba(148,163,184,0.08)'
-        ctx2d.lineWidth = 1
-        for (let x = 0; x < W; x += 24) {
-          ctx2d.beginPath()
-          ctx2d.moveTo(x, 0)
-          ctx2d.lineTo(x, H)
-          ctx2d.stroke()
-        }
-        for (let y = 0; y < H; y += 24) {
-          ctx2d.beginPath()
-          ctx2d.moveTo(0, y)
-          ctx2d.lineTo(W, y)
-          ctx2d.stroke()
-        }
-
         const grad = ctx2d.createLinearGradient(0, H, 0, 0)
-        grad.addColorStop(0, '#0284c7')
-        grad.addColorStop(0.5, '#22d3ee')
-        grad.addColorStop(1, '#a7f3d0')
+        grad.addColorStop(0, 'rgba(34,211,238,0.5)')
+        grad.addColorStop(1, 'rgba(167,243,208,0.9)')
 
-        const bars = 64
+        const bars = 48
         const step = Math.floor(bins.length / bars)
         const bw = W / bars
-        const isLive = isActive
 
         for (let i = 0; i < bars; i++) {
           const v = bins[i * step] / 255
-          const bh = Math.max(isLive ? 2 : 1, v * H)
+          const bh = Math.max(isActive ? 3 : 1.5, v * H)
           ctx2d.fillStyle = grad
-          ctx2d.globalAlpha = 0.55 + v * 0.45
-          ctx2d.fillRect(i * bw + 1, H - bh, bw - 2, bh)
+          ctx2d.globalAlpha = 0.35 + v * 0.65
+          ctx2d.beginPath()
+          ctx2d.roundRect(i * bw + 2, H - bh, bw - 4, bh, 4)
+          ctx2d.fill()
         }
         ctx2d.globalAlpha = 1
       }
@@ -66,145 +50,9 @@ function Visualizer({ getAnalyser, isActive }) {
     <canvas
       ref={canvasRef}
       role="img"
-      aria-label="الفيجوالايزر — طيف الصوت الحي"
-      className="h-44 w-full rounded-2xl border border-slate-700/60 bg-slate-900/60"
+      aria-label="موجة الصوت"
+      className="h-32 w-full rounded-2xl border border-white/5 bg-white/[0.03]"
     />
-  )
-}
-
-/* ---------------- منطقة السحب والإفلات ---------------- */
-function DragDropZone({ onFile, fileName, fileDuration, disabled }) {
-  const [dragging, setDragging] = useState(false)
-  const inputRef = useRef(null)
-
-  const handleDrop = useCallback(
-    (e) => {
-      e.preventDefault()
-      setDragging(false)
-      const f = e.dataTransfer.files && e.dataTransfer.files[0]
-      if (f) onFile(f)
-    },
-    [onFile],
-  )
-
-  const onKeyDown = (e) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault()
-      inputRef.current && inputRef.current.click()
-    }
-  }
-
-  return (
-    <div
-      role="button"
-      tabIndex={disabled ? -1 : 0}
-      aria-label="رفع ملف صوتي — اسحب الملف هنا أو اضغط للاختيار"
-      onClick={() => !disabled && inputRef.current && inputRef.current.click()}
-      onKeyDown={onKeyDown}
-      onDragOver={(e) => {
-        e.preventDefault()
-        setDragging(true)
-      }}
-      onDragLeave={() => setDragging(false)}
-      onDrop={handleDrop}
-      className={`group cursor-pointer rounded-2xl border-2 border-dashed p-6 text-center transition focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${
-        dragging
-          ? 'border-cyan-400 bg-cyan-500/10'
-          : 'border-slate-700 bg-slate-900/40 hover:border-cyan-500/50 hover:bg-slate-900/70'
-      } ${disabled ? 'pointer-events-none opacity-40' : ''}`}
-    >
-      <input
-        ref={inputRef}
-        type="file"
-        accept="audio/*,.mp3,.wav"
-        className="hidden"
-        onChange={(e) => {
-          const f = e.target.files && e.target.files[0]
-          if (f) onFile(f)
-          e.target.value = ''
-        }}
-      />
-      {fileName ? (
-        <div>
-          <div className="text-2xl">🎵</div>
-          <div className="mt-1 truncate text-sm font-bold text-cyan-300">{fileName}</div>
-          <div className="mt-1 text-xs text-slate-400">
-            {fileDuration ? `${fileDuration.toFixed(1)} ثانية` : '—'} · اضغط لاستبدال الملف
-          </div>
-        </div>
-      ) : (
-        <div>
-          <div className="text-2xl">📁</div>
-          <div className="mt-1 text-sm font-semibold text-slate-200">
-            اسحب ملف صوتي هنا أو اضغط للاختيار
-          </div>
-          <div className="mt-1 text-xs text-slate-500">MP3 · WAV · M4A · OGG</div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-/* ---------------- مفتاح المقارنة A/B ---------------- */
-function ComparisonSwitch({ isClean, onChange, disabled }) {
-  return (
-    <div className="flex items-center gap-3 rounded-xl border border-slate-700/60 bg-slate-900/40 px-4 py-3">
-      <span className="text-lg">🔀</span>
-      <div className="flex flex-1 flex-col">
-        <span className="text-xs font-bold text-slate-300">اختبار A/B</span>
-        <span className="text-[11px] text-slate-500">
-          {isClean ? 'تسمع الصوت المنظف' : 'تسمع الصوت الأصلي'}
-        </span>
-      </div>
-      <button
-        role="switch"
-        aria-checked={isClean}
-        aria-label={isClean ? 'التنظيف مفعّل — اضغط للاستماع للأصلي' : 'التنظيف متوقف — اضغط للاستماع للمنظف'}
-        onClick={() => onChange(!isClean)}
-        disabled={disabled}
-        className={`relative h-8 w-14 rounded-full transition focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 disabled:cursor-not-allowed disabled:opacity-40 ${
-          isClean ? 'bg-cyan-600' : 'bg-amber-600'
-        }`}
-      >
-        <span
-          className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow transition-all ${
-            isClean ? 'right-1' : 'right-7'
-          }`}
-        />
-      </button>
-      <div className="flex flex-col items-end text-[11px]">
-        <span className={isClean ? 'font-bold text-cyan-300' : 'text-slate-500'}>
-          ✨ المنظف
-        </span>
-        <span className={!isClean ? 'font-bold text-amber-300' : 'text-slate-500'}>
-          🎚️ الأصلي
-        </span>
-      </div>
-    </div>
-  )
-}
-
-/* ---------------- بطاقة عقدة معالجة ---------------- */
-function NodeCard({ icon, title, desc, active }) {
-  return (
-    <div
-      className={`rounded-xl border p-3 text-right transition ${
-        active
-          ? 'border-cyan-500/50 bg-cyan-500/10'
-          : 'border-slate-700/60 bg-slate-900/40 opacity-50'
-      }`}
-    >
-      <div className="flex items-center gap-2">
-        <span className="text-lg">{icon}</span>
-        <span className="text-sm font-semibold text-slate-100">{title}</span>
-        <span
-          className={`mr-auto h-2 w-2 rounded-full ${
-            active ? 'bg-emerald-400 shadow-[0_0_8px_#34d399]' : 'bg-slate-600'
-          }`}
-        />
-      </div>
-      <p className="mt-1 text-[11px] leading-relaxed text-slate-400">{desc}</p>
-    </div>
   )
 }
 
@@ -232,6 +80,11 @@ export default function App() {
 
   const [toasts, setToasts] = useState([])
   const toastId = useRef(0)
+  const [tab, setTab] = useState('mic') // 'mic' | 'upload'
+  const [micSeconds, setMicSeconds] = useState(0)
+  const [dragging, setDragging] = useState(false)
+  const workspaceRef = useRef(null)
+  const fileInputRef = useRef(null)
 
   const pushToast = useCallback((type, msg) => {
     const id = ++toastId.current
@@ -243,63 +96,79 @@ export default function App() {
     setToasts((t) => t.filter((x) => x.id !== id))
   }, [])
 
-  const handleFile = useCallback(
-    async (f) => {
-      if (!f) return
-      if (!/audio\//.test(f.type) && !/\.(mp3|wav|m4a|ogg|aac|flac)$/i.test(f.name)) {
-        pushToast('error', 'الملف ليس صوتياً — ارفع MP3 أو WAV أو صيغة صوتية أخرى')
-        return
-      }
-      try {
-        await loadFile(f)
-        pushToast('success', `تم تحميل «${f.name}» — جاهز للتنظيف`)
-      } catch {
-        pushToast('error', 'تعذّر قراءة الملف — تأكد أنه بصيغة صوتية سليمة')
-      }
-    },
-    [loadFile, pushToast],
-  )
+  // مؤقت التسجيل
+  useEffect(() => {
+    if (!isMicOn) return
+    setMicSeconds(0)
+    const t = setInterval(() => setMicSeconds((s) => s + 1), 1000)
+    return () => clearInterval(t)
+  }, [isMicOn])
+
+  const fmtTime = (s) =>
+    `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
 
   const handleMic = useCallback(async () => {
     if (isMicOn) {
       await stopMic()
-      pushToast('info', 'تم إيقاف الميكروفون')
+      pushToast('info', 'تم إيقاف التسجيل')
     } else {
       try {
         await startMic()
-        pushToast('success', 'الميكروفون يعمل — التنظيف في الوقت الفعلي مفعّل')
+        pushToast('success', 'التسجيل يعمل — استمع للفرق الآن')
       } catch {
         pushToast('error', 'تعذّر الوصول للميكروفون — تحقق من الإذن')
       }
     }
   }, [isMicOn, startMic, stopMic, pushToast])
 
+  const handleFile = useCallback(
+    async (f) => {
+      if (!f) return
+      if (!/audio\//.test(f.type) && !/\.(mp3|wav|m4a|ogg|aac|flac)$/i.test(f.name)) {
+        pushToast('error', 'الملف ليس صوتياً — ارفع MP3 أو WAV أو M4A')
+        return
+      }
+      try {
+        await loadFile(f)
+        pushToast('success', 'تم تحميل الملف — جاهز للتنقية')
+      } catch {
+        pushToast('error', 'تعذّرت قراءة الملف — تأكد أنه سليم')
+      }
+    },
+    [loadFile, pushToast],
+  )
+
+  const switchTab = useCallback(
+    async (next) => {
+      if (next === tab) return
+      // إيقاف الميكروفون عند الانتقال لتبويب الرفع
+      if (next === 'upload' && isMicOn) {
+        await stopMic()
+      }
+      setTab(next)
+    },
+    [tab, isMicOn, stopMic],
+  )
+
   const handlePlay = useCallback(async () => {
     if (!fileName) {
-      pushToast('info', 'ارفع ملفاً صوتياً أولاً للتشغيل')
+      pushToast('info', tab === 'upload' ? 'ارفع ملفاً صوتياً أولاً' : 'حوّل لتبويب رفع الملف')
       return
     }
-    if (isPlaying) {
-      await stop()
-    } else {
-      await play()
-      pushToast('info', isClean ? 'تشغيل الصوت المنظف ✨' : 'تشغيل الصوت الأصلي 🎚️')
-    }
-  }, [fileName, isPlaying, isClean, play, stop, pushToast])
+    if (isPlaying) await stop()
+    else await play()
+  }, [fileName, isPlaying, tab, play, stop, pushToast])
 
   const handleExport = useCallback(async () => {
     if (!fileName) {
-      pushToast('info', 'ارفع ملفاً صوتياً أولاً للتصدير')
+      pushToast('info', 'ارفع ملفاً صوتياً أولاً')
       return
     }
     try {
       const { duration } = await exportWav()
-      pushToast(
-        'success',
-        `تم تنزيل WAV نظيف (44.1kHz · ${duration.toFixed(1)} ثانية) — cleaned-audio-*.wav`,
-      )
+      pushToast('success', `تم تنزيل الصوت المنقّى — ${duration.toFixed(1)} ثانية`)
     } catch {
-      pushToast('error', 'فشل التصدير — جرّب ملفاً أقصر أو متصفحاً أحدث')
+      pushToast('error', 'تعذّر التنزيل — جرّب مرة أخرى')
     }
   }, [fileName, exportWav, pushToast])
 
@@ -308,164 +177,243 @@ export default function App() {
     if (error) pushToast('error', error)
   }, [error, pushToast])
 
+  const scrollToWorkspace = () => {
+    workspaceRef.current && workspaceRef.current.scrollIntoView({ behavior: 'smooth' })
+  }
+
   return (
-    <div dir="rtl" className="min-h-screen bg-slate-950 text-slate-100">
-      <div className="mx-auto max-w-5xl px-4 py-8">
-        {/* الترويسة */}
-        <header className="mb-6 flex flex-col items-center gap-3 text-center sm:flex-row sm:justify-between sm:text-right">
-          <div>
-            <h1 className="text-3xl font-bold">
-              🎧 تنظيف الصوت
-              <span className="mt-1 block text-sm font-normal text-cyan-400">
-                مزيل الضوضاء الذكي — في الوقت الفعلي
-              </span>
-            </h1>
+    <div dir="rtl" className="min-h-screen bg-slate-950 text-slate-100 antialiased">
+      {/* ============ Hero ============ */}
+      <section className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 text-center">
+        {/* خلفية متدرجة ناعمة */}
+        <div className="pointer-events-none absolute inset-0">
+          <div className="absolute -top-40 right-1/4 h-96 w-96 rounded-full bg-cyan-500/10 blur-3xl" />
+          <div className="absolute bottom-0 left-1/4 h-80 w-80 rounded-full bg-emerald-500/10 blur-3xl" />
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-slate-950" />
+        </div>
+
+        <div className="relative max-w-2xl">
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-1.5 text-sm text-slate-300 backdrop-blur">
+            <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_10px_#34d399]" />
+            يعمل الآن — جاهز للاستخدام
           </div>
-          <div
-            title="100% Client-Side: Your audio never leaves your device"
-            className="flex items-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-4 py-2 text-xs font-semibold text-emerald-300"
+
+          <h1 className="text-5xl font-black leading-tight tracking-tight sm:text-6xl">
+            نقاء{' '}
+            <span className="bg-gradient-to-l from-cyan-300 to-emerald-300 bg-clip-text text-transparent">
+              الصوت
+            </span>
+          </h1>
+
+          <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-slate-400">
+            تخلص من ضجيج المكيفات والأصوات المحيطة في تسجيلاتك
+            <span className="text-slate-200"> بنقرة واحدة</span>
+          </p>
+
+          <button
+            onClick={scrollToWorkspace}
+            className="mt-10 rounded-full bg-gradient-to-l from-cyan-500 to-emerald-500 px-10 py-4 text-lg font-bold text-white shadow-lg shadow-cyan-500/25 transition hover:scale-105 hover:shadow-xl hover:shadow-cyan-500/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 active:scale-95"
           >
-            <span className="text-base">🛡️</span>
-            <span dir="ltr">100% Client-Side</span>
-            <span className="hidden text-emerald-400/80 sm:inline">—</span>
-            <span className="hidden sm:inline">صوتك لا يغادر جهازك أبداً</span>
-          </div>
-        </header>
+            ابدأ الآن
+          </button>
 
-        {!supported && (
-          <div className="mb-4 rounded-xl border border-rose-500/50 bg-rose-500/10 p-4 text-sm text-rose-200">
-            ⚠️ متصفحك لا يدعم AudioWorklet — استخدم Chrome أو Edge أحدث لتجربة كاملة
-          </div>
-        )}
+          <p className="mt-6 text-sm text-slate-600">بدون تسجيل · بدون تحميلات · مجاني تماماً</p>
+        </div>
+      </section>
 
-        {/* الشبكة الرئيسية */}
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          {/* العمود الرئيسي */}
-          <div className="space-y-4 lg:col-span-2">
-            <Visualizer getAnalyser={getAnalyser} isActive={isMicOn || isPlaying} />
-
-            <DragDropZone
-              onFile={handleFile}
-              fileName={fileName}
-              fileDuration={fileDuration}
-              disabled={!supported}
-            />
-
-            <ComparisonSwitch
-              isClean={isClean}
-              onChange={setClean}
-              disabled={!supported}
-            />
-
-            {/* أزرار التحكم */}
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {/* ============ Workspace ============ */}
+      <section ref={workspaceRef} className="px-4 pb-24">
+        <div className="mx-auto max-w-2xl">
+          <div className="rounded-3xl border border-white/10 bg-slate-900/60 p-6 shadow-2xl shadow-black/40 backdrop-blur sm:p-8">
+            {/* التبويبات */}
+            <div className="mb-6 grid grid-cols-2 gap-2 rounded-2xl bg-slate-950/60 p-1.5">
               <button
-                onClick={handleMic}
-                disabled={!supported}
-                aria-pressed={isMicOn}
-                className={`relative rounded-xl px-4 py-3 text-sm font-bold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 disabled:cursor-not-allowed disabled:opacity-40 ${
-                  isMicOn
-                    ? 'bg-rose-600 text-white hover:bg-rose-500'
-                    : 'bg-cyan-600 text-white hover:bg-cyan-500'
+                onClick={() => switchTab('mic')}
+                aria-pressed={tab === 'mic'}
+                className={`rounded-xl px-4 py-3 text-sm font-bold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 ${
+                  tab === 'mic'
+                    ? 'bg-gradient-to-l from-cyan-500 to-emerald-500 text-white shadow'
+                    : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                {isMicOn && (
-                  <span className="absolute -top-1 -left-1 flex h-3 w-3">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-400 opacity-75" />
-                    <span className="relative inline-flex h-3 w-3 rounded-full bg-rose-500" />
-                  </span>
-                )}
-                {isMicOn ? '🛑 إيقاف الميكروفون' : '🎙️ تشغيل الميكروفون'}
+                🎙️ تسجيل صوتي مباشر
               </button>
+              <button
+                onClick={() => switchTab('upload')}
+                aria-pressed={tab === 'upload'}
+                className={`rounded-xl px-4 py-3 text-sm font-bold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 ${
+                  tab === 'upload'
+                    ? 'bg-gradient-to-l from-cyan-500 to-emerald-500 text-white shadow'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                📁 رفع ملف صوتي
+              </button>
+            </div>
 
+            {/* ===== تبويب التسجيل ===== */}
+            {tab === 'mic' && (
+              <div className="flex flex-col items-center py-4">
+                <button
+                  onClick={handleMic}
+                  disabled={!supported}
+                  className={`relative flex h-28 w-28 items-center justify-center rounded-full text-white transition focus:outline-none focus-visible:ring-4 focus-visible:ring-cyan-300 disabled:cursor-not-allowed disabled:opacity-40 ${
+                    isMicOn
+                      ? 'bg-rose-600 shadow-lg shadow-rose-600/40 hover:bg-rose-500'
+                      : 'bg-gradient-to-br from-cyan-500 to-emerald-500 shadow-lg shadow-cyan-500/30 hover:scale-105 active:scale-95'
+                  }`}
+                >
+                  {isMicOn && (
+                    <span className="absolute inset-0 -z-10 animate-ping rounded-full bg-rose-500/40" />
+                  )}
+                  <span className="text-3xl">{isMicOn ? '🛑' : '🎙️'}</span>
+                </button>
+
+                <div className="mt-4 text-center">
+                  <div
+                    className={`font-mono text-2xl font-bold tabular-nums ${
+                      isMicOn ? 'text-rose-400' : 'text-slate-300'
+                    }`}
+                  >
+                    {fmtTime(micSeconds)}
+                  </div>
+                  <p className="mt-2 text-sm text-slate-400">
+                    {isMicOn
+                      ? 'التنقية تعمل الآن — استمع للفرق لحظياً'
+                      : 'اضغط الزر وابدأ التحدث — تُنقّى الخلفية لحظياً'}
+                  </p>
+                  <p className="mt-1 text-xs text-slate-600">
+                    لتجربة التنزيل، استخدم تبويب «رفع ملف صوتي»
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* ===== تبويب الرفع ===== */}
+            {tab === 'upload' && (
+              <div className="py-2">
+                <div
+                  role="button"
+                  tabIndex={supported ? 0 : -1}
+                  aria-label="رفع ملف صوتي — اسحب الملف هنا أو اضغط للاختيار"
+                  onClick={() => supported && fileInputRef.current && fileInputRef.current.click()}
+                  onKeyDown={(e) => {
+                    if ((e.key === 'Enter' || e.key === ' ') && supported) {
+                      e.preventDefault()
+                      fileInputRef.current && fileInputRef.current.click()
+                    }
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault()
+                    setDragging(true)
+                  }}
+                  onDragLeave={() => setDragging(false)}
+                  onDrop={(e) => {
+                    e.preventDefault()
+                    setDragging(false)
+                    const f = e.dataTransfer.files && e.dataTransfer.files[0]
+                    if (f) handleFile(f)
+                  }}
+                  className={`cursor-pointer rounded-2xl border-2 border-dashed px-6 py-10 text-center transition focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 ${
+                    dragging
+                      ? 'border-cyan-400 bg-cyan-500/10'
+                      : 'border-white/10 bg-white/[0.02] hover:border-cyan-500/40'
+                  } ${supported ? '' : 'pointer-events-none opacity-40'}`}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="audio/*,.mp3,.wav,.m4a"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files && e.target.files[0]
+                      if (f) handleFile(f)
+                      e.target.value = ''
+                    }}
+                  />
+                  {fileName ? (
+                    <div>
+                      <div className="text-3xl">🎵</div>
+                      <div className="mt-2 truncate text-sm font-bold text-cyan-300">
+                        {fileName}
+                      </div>
+                      <div className="mt-1 text-xs text-slate-500">
+                        {fileDuration ? `${fileDuration.toFixed(1)} ثانية` : ''} · اضغط لاستبدال الملف
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="text-3xl">📁</div>
+                      <div className="mt-2 text-sm font-semibold text-slate-200">
+                        اسحب الملف هنا أو اضغط للاختيار
+                      </div>
+                      <div className="mt-1 text-xs text-slate-500">MP3 · WAV · M4A</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* الفيجوالايزر */}
+            <div className="mt-6">
+              <Visualizer getAnalyser={getAnalyser} isActive={isMicOn || isPlaying} />
+            </div>
+
+            {/* التشغيل والمقارنة */}
+            <div className="mt-6 flex flex-col items-center gap-4 sm:flex-row sm:justify-between">
               <button
                 onClick={handlePlay}
                 disabled={!supported || !fileName}
-                className="rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-emerald-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 disabled:cursor-not-allowed disabled:opacity-40"
+                className="flex h-14 w-14 items-center justify-center rounded-full bg-white/10 text-xl text-white transition hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:cursor-not-allowed disabled:opacity-30"
+                aria-label={isPlaying ? 'إيقاف' : 'تشغيل'}
               >
-                {isPlaying ? '⏹️ إيقاف' : '▶️ تشغيل'}
+                {isPlaying ? '⏸️' : '▶️'}
               </button>
 
+              <div className="flex items-center gap-1 rounded-full bg-slate-950/60 p-1.5">
+                <button
+                  onClick={() => setClean(false)}
+                  aria-pressed={!isClean}
+                  className={`rounded-full px-5 py-2 text-sm font-bold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 ${
+                    !isClean
+                      ? 'bg-amber-500/90 text-white shadow'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  الخام <span className="text-xs opacity-70">(قبل)</span>
+                </button>
+                <button
+                  onClick={() => setClean(true)}
+                  aria-pressed={isClean}
+                  className={`rounded-full px-5 py-2 text-sm font-bold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 ${
+                    isClean
+                      ? 'bg-gradient-to-l from-cyan-500 to-emerald-500 text-white shadow'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  نقي <span className="text-xs opacity-70">(بعد التصفية)</span>
+                </button>
+              </div>
+            </div>
+
+            {/* زر التحميل — في تبويب الرفع فقط */}
+            {tab === 'upload' && (
               <button
                 onClick={handleExport}
                 disabled={!supported || !fileName || isExporting}
-                className="rounded-xl bg-violet-600 px-4 py-3 text-sm font-bold text-white transition hover:bg-violet-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 disabled:cursor-not-allowed disabled:opacity-40"
+                className="mt-6 w-full rounded-2xl bg-gradient-to-l from-cyan-500 to-emerald-500 px-6 py-4 text-base font-bold text-white shadow-lg shadow-cyan-500/25 transition hover:brightness-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {isExporting ? '⏳ جاري التنظيف...' : '💾 تصدير WAV'}
+                {isExporting ? '⏳ جاري التنقية...' : '⬇️ تحميل الصوت المنقّى'}
               </button>
-
-              <div className="flex items-center justify-center rounded-xl border border-slate-800 bg-slate-900/40 text-xs text-slate-400">
-                {isReady ? (
-                  <span className="flex items-center gap-1.5">
-                    <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]" />
-                    المحرك جاهز
-                  </span>
-                ) : (
-                  <span className="animate-pulse">◌ جاري التهيئة...</span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* العمود الجانبي — سلسلة المعالجة */}
-          <div className="space-y-2">
-            <h2 className="text-sm font-bold text-slate-300">
-              سلسلة المعالجة{' '}
-              {!isClean && (
-                <span className="text-amber-400">— (متجاوزة — مرور خام)</span>
-              )}
-            </h2>
-            <NodeCard
-              icon="🎚️"
-              title="مرشح High-Pass"
-              desc="قص الهمهمة المنخفضة — 80Hz"
-              active={isClean}
-            />
-            <NodeCard
-              icon="🧹"
-              title="RNNoise"
-              desc="إلغاء ضوضاء الخلفية لحظياً (WASM)"
-              active={isClean}
-            />
-            <NodeCard
-              icon="🎛️"
-              title="Peaking EQ"
-              desc="حضور الصوت — 3.5kHz، +2.5dB"
-              active={isClean}
-            />
-            <NodeCard
-              icon="📊"
-              title="Compressor"
-              desc="تسوية المستوى — ratio 4:1"
-              active={isClean}
-            />
-            <NodeCard
-              icon="🛡️"
-              title="Limiter"
-              desc="حماية من التشويش — 20:1"
-              active={isClean}
-            />
-            <NodeCard
-              icon="🔊"
-              title="Master Gain"
-              desc="المستوى النهائي للإخراج"
-              active={true}
-            />
-            {fileName && (
-              <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-3 text-[11px] leading-relaxed text-slate-500">
-                💡 التصدير يعالج الملف كاملاً عبر OfflineAudioContext ثم يحوّله إلى{' '}
-                <span dir="ltr">WAV 16-bit · 44.1kHz</span> (أحادي — لأن RNNoise يعالج
-                قناة واحدة).
-              </div>
             )}
           </div>
-        </div>
 
-        <footer className="mt-8 text-center text-xs text-slate-600">
-          يعمل بالكامل محلياً في متصفحك — لا تُرفع أي بيانات لخادم · Web Audio API +
-          RNNoise WASM
-        </footer>
-      </div>
+          {/* حالة الجاهزية (صامتة) */}
+          <p className="mt-4 text-center text-xs text-slate-700">
+            {isReady ? '✓ جاهز للعمل' : '◌ جاري التجهيز...'}
+          </p>
+        </div>
+      </section>
 
       <Toasts toasts={toasts} onDismiss={dismissToast} />
     </div>
