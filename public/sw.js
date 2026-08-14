@@ -5,7 +5,7 @@
  * - الأصول (JS/CSS/أيقونات/الـ worklet): كاش أولاً ثم الشبكة مع تخزين.
  * - لا نلمس الطلبات عبر النطاقات (cross-origin).
  */
-const CACHE = 'nuqa-pwa-v1'
+const CACHE = 'nuqa-pwa-v2'
 const PRECACHE = ['./', './manifest.webmanifest']
 
 self.addEventListener('install', (event) => {
